@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculadora de Fórmula Empírica</title>
+  <style>
+    :root {
+      --bg: #0f172a;       /* slate-900 */
+      --panel: #111827;    /* gray-900 */
+      --muted: #94a3b8;    /* slate-400 */
+      --text: #e5e7eb;     /* gray-200 */
+      --accent: #22d3ee;   /* cyan-400 */
+      --accent-2: #60a5fa; /* blue-400 */
+      --ok: #34d399;       /* green-400 */
+      --warn: #fbbf24;     /* amber-400 */
+      --err: #f87171;      /* red-400 */
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial; 
+      background: linear-gradient(180deg, #0b1026, #0f172a);
+      color: var(--text);
+      min-height: 100vh; display: grid; place-items: start center; padding: 32px 16px;
+    }
+    .container { width: 100%; max-width: 980px; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      overflow: hidden;
+    }
+    .header { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08);
+      display:flex; gap:16px; align-items:center; justify-content: space-between;
+      background: radial-gradient(1200px 200px at -5% -30%, rgba(34,211,238,0.25), transparent),
+                  radial-gradient(1200px 200px at 105% -30%, rgba(96,165,250,0.2), transparent);
+    }
+    .title { font-size: 1.125rem; font-weight: 700; letter-spacing: 0.3px; }
+    .muted { color: var(--muted); font-size: 0.925rem; }
+    .content { padding: 20px 24px; display: grid; gap: 18px; }
+    .row { display: grid; gap: 12px; grid-template-columns: 1fr; }
+    @media (min-width: 800px){ .row { grid-template-columns: 2fr 1fr; } }
+
+    .panel { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius); padding: 16px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; text-align: left; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+    th { font-size: 0.9rem; color: var(--muted); font-weight: 600; letter-spacing: 0.2px; }
+    input[type="text"], input[type="number"] {
+      width: 100%; background: #0b1229; color: var(--text);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 12px; outline: none;
+    }
+    input::placeholder { color: #6b7280; }
+    .controls { display:flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .btn {
+      border: 1px solid rgba(255,255,255,0.12);
+      background: linear-gradient(180deg, rgba(34,211,238,0.25), rgba(34,211,238,0.12));
+      color: white; font-weight: 700; padding: 10px 14px; border-radius: 12px;
+      cursor: pointer; transition: transform .05s ease, filter .15s ease;
+    }
+    .btn:hover { filter: brightness(1.1); }
+    .btn:active { transform: translateY(1px); }
+    .btn.secondary { background: rgba(255,255,255,0.04); }
+    .btn.warn { background: linear-gradient(180deg, rgba(251,191,36,0.35), rgba(251,191,36,0.16)); }
+
+    .result { font-size: 1.5rem; font-weight: 800; letter-spacing: 0.5px; }
+    .badge { display:inline-flex; align-items:center; gap:6px; font-size:.8rem; color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 999px; padding: 6px 10px; background: rgba(255,255,255,0.03); }
+    .bad { color: var(--err); }
+    .ok { color: var(--ok); }
+    .footnote { font-size: .85rem; color: var(--muted); }
+    .code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <div>
+          <div class="title">Calculadora de Fórmula Empírica</div>
+          <div class="muted">Ingresa <b>símbolo</b> del elemento y <b>gramos</b>. El algoritmo convierte a moles, normaliza y ajusta a enteros.</div>
+        </div>
+        <div class="badge">v1.0 · JS</div>
+      </div>
+
+      <div class="content">
+        <div class="row">
+          <div class="panel">
+            <div class="controls" style="justify-content: space-between; margin-bottom: 10px;">
+              <div class="controls">
+                <button id="addRow" class="btn">+ Agregar elemento</button>
+                <button id="clearRows" class="btn secondary">Limpiar</button>
+              </div>
+              <div class="controls">
+                <label class="muted">Tolerancia ε
+                  <input id="eps" type="number" step="0.001" min="0" value="0.02" style="width:90px; margin-left:8px;">
+                </label>
+                <label class="muted">Multiplicador máx.
+                  <input id="maxMult" type="number" min="2" max="24" value="8" style="width:90px; margin-left:8px;">
+                </label>
+              </div>
+            </div>
+
+            <table id="tbl">
+              <thead>
+                <tr>
+                  <th style="width: 160px;">Elemento (símbolo)</th>
+                  <th>Gramos</th>
+                  <th style="width: 60px;"></th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+
+            <div class="controls" style="margin-top: 14px;">
+              <button id="calc" class="btn">Calcular fórmula</button>
+              <button id="example1" class="btn secondary">Ejemplo CH₂O</button>
+              <button id="example2" class="btn secondary">Ejemplo Fe₂O₃</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 10px;">
+              <div class="muted">Resultado</div>
+              <button id="copy" class="btn secondary" title="Copiar fórmula">Copiar</button>
+            </div>
+            <div id="formula" class="result">—</div>
+            <hr style="border-color: rgba(255,255,255,0.08); margin: 16px 0;" />
+            <div class="muted">Detalles</div>
+            <div id="details" class="code footnote">—</div>
+          </div>
+        </div>
+
+        <div class="panel footnote">
+          <b>Notas:</b> Las masas atómicas son valores estándar aproximados (IUPAC). El orden de salida sigue la <i>notación de Hill</i> (C, H y resto alfabético; si no hay C, todo alfabético). Ajusta ε y el multiplicador máximo para casos con fracciones (½, ⅓, ⅔, ¼…).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ————————————————————————————————————————————————
+    // Diccionario de masas atómicas (g/mol)
+    // (Lista amplia de uso común. Puedes ampliarla según necesites.)
+    const ATOMIC_MASS = {
+      H:1.008, He:4.0026,
+      Li:6.94, Be:9.0122, B:10.81, C:12.01, N:14.01, O:16.00, F:18.998, Ne:20.18,
+      Na:22.99, Mg:24.305, Al:26.9815, Si:28.085, P:30.9738, S:32.06, Cl:35.45, Ar:39.948,
+      K:39.0983, Ca:40.078, Sc:44.9559, Ti:47.867, V:50.9415, Cr:51.9961, Mn:54.938, Fe:55.845,
+      Co:58.933, Ni:58.693, Cu:63.546, Zn:65.38, Ga:69.723, Ge:72.63, As:74.9216, Se:78.971,
+      Br:79.904, Kr:83.798, Rb:85.4678, Sr:87.62, Y:88.9059, Zr:91.224, Nb:92.9064, Mo:95.95,
+      Ru:101.07, Rh:102.906, Pd:106.42, Ag:107.8682, Cd:112.414, In:114.818, Sn:118.71,
+      Sb:121.760, Te:127.60, I:126.9045, Xe:131.293, Cs:132.905, Ba:137.327, La:138.9055,
+      Ce:140.116, Pr:140.9077, Nd:144.242, Sm:150.36, Eu:151.964, Gd:157.25, Tb:158.925,
+      Dy:162.5, Ho:164.930, Er:167.259, Tm:168.934, Yb:173.045, Lu:174.967, Hf:178.49,
+      Ta:180.948, W:183.84, Re:186.207, Os:190.23, Ir:192.217, Pt:195.084, Au:196.9666,
+      Hg:200.59, Tl:204.383, Pb:207.2, Bi:208.980, Th:232.038, U:238.0289
+    };
+
+    // ————————————————————————————————————————————————
+    // Utilidades UI
+    const tbody = document.getElementById('tbody');
+    const addRowBtn = document.getElementById('addRow');
+    const clearRowsBtn = document.getElementById('clearRows');
+    const calcBtn = document.getElementById('calc');
+    const copyBtn = document.getElementById('copy');
+    const epsInput = document.getElementById('eps');
+    const maxMultInput = document.getElementById('maxMult');
+    const formulaOut = document.getElementById('formula');
+    const detailsOut = document.getElementById('details');
+    const ex1 = document.getElementById('example1');
+    const ex2 = document.getElementById('example2');
+
+    function addRow(symbol = '', grams = ''){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" placeholder="Ej: C" value="${symbol}" /></td>
+        <td><input type="number" step="any" placeholder="Ej: 24.0" value="${grams}" /></td>
+        <td><button class="btn warn" title="Eliminar fila">×</button></td>
+      `;
+      tr.querySelector('button').addEventListener('click', () => tr.remove());
+      tbody.appendChild(tr);
+    }
+
+    function clearRows(){ tbody.innerHTML = ''; }
+
+    // Pre-cargar 3 filas vacías
+    addRow(); addRow(); addRow();
+
+    addRowBtn.addEventListener('click', () => addRow());
+    clearRowsBtn.addEventListener('click', clearRows);
+
+    ex1.addEventListener('click', () => {
+      clearRows();
+      addRow('C', 24.0); addRow('H', 6.0); addRow('O', 16.0);
+    });
+    ex2.addEventListener('click', () => {
+      clearRows();
+      addRow('Fe', 69.94); addRow('O', 30.06);
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      const text = formulaOut.textContent.trim();
+      if (!text || text === '—') return;
+      try { await navigator.clipboard.writeText(text); copyBtn.textContent = '¡Copiado!'; }
+      catch { copyBtn.textContent = 'Copiar (falló)'; }
+      finally { setTimeout(() => copyBtn.textContent = 'Copiar', 1200); }
+    });
+
+    // ————————————————————————————————————————————————
+    // Lógica química
+    function normalizeSymbol(s){
+      if (!s) return '';
+      s = s.trim();
+      if (s.length === 1) return s.toUpperCase();
+      return s[0].toUpperCase() + s.slice(1).toLowerCase();
+    }
+
+    function hillOrder(keys){
+      const set = new Set(keys);
+      if (set.has('C')){
+        const rest = keys.filter(k => k !== 'C' && k !== 'H').sort();
+        return ['C', ...(set.has('H') ? ['H'] : []), ...rest];
+      }
+      return [...keys].sort();
+    }
+
+    function isCloseToInt(x, tol){ return Math.abs(x - Math.round(x)) < tol; }
+
+    function empiricalFormula(gramsByElement, masses=ATOMIC_MASS, eps=0.02, maxMult=8){
+      // 1) gramos -> moles
+      const moles = {};
+      for (const el in gramsByElement){
+        if (!(el in masses)) throw new Error(`Elemento 
+"${el}" no está en el diccionario de masas.`);
+        const g = gramsByElement[el];
+        if (!(g > 0)) continue; // ignorar ceros o negativos
+        moles[el] = g / masses[el];
+      }
+      const molVals = Object.values(moles).filter(v => v > 0);
+      if (molVals.length === 0) throw new Error('No hay entradas válidas (>0 g).');
+
+      // 2) dividir por el menor número de moles
+      const minMoles = Math.min(...molVals);
+      const ratios = {}; for (const el in moles) ratios[el] = moles[el] / minMoles;
+
+      // 3) Ajustar a enteros
+      let ints = {};
+      if (Object.values(ratios).every(r => isCloseToInt(r, eps))){
+        for (const el in ratios) ints[el] = Math.round(ratios[el]);
+      } else {
+        let found = false;
+        for (let k = 2; k <= maxMult && !found; k++){
+          if (Object.values(ratios).every(r => isCloseToInt(r * k, eps))){
+            for (const el in ratios) ints[el] = Math.round(ratios[el] * k);
+            found = true;
+          }
+        }
+        if (!found){
+          // Último recurso: redondeo directo (puede introducir error)
+          for (const el in ratios) ints[el] = Math.max(1, Math.round(ratios[el]));
+        }
+      }
+
+      // 4) simplificar por MCD
+      const vals = Object.values(ints).filter(v => v > 0);
+      const gcd = (a,b)=> b?gcd(b,a%b):a;
+      const G = vals.reduce((acc,v)=>gcd(acc, v), vals[0]);
+      if (G > 1) for (const el in ints) if (ints[el] > 0) ints[el] = Math.floor(ints[el]/G);
+
+      // 5) construir fórmula (Hill)
+      let keys = Object.keys(ints).filter(k => ints[k] > 0);
+      keys = hillOrder(keys);
+      let out = '';
+      for (const el of keys){
+        const n = ints[el];
+        out += (n === 1) ? el : el + String(n);
+      }
+      return { formula: out, ints, ratios };
+    }
+
+    function prettyRatios(r){
+      const entries = Object.entries(r).sort(([a],[b]) => a.localeCompare(b));
+      return entries.map(([k,v]) => `${k}: ${v.toFixed(4)}`).join('  ·  ');
+    }
+
+    function handleCalculate(){
+      const rows = [...tbody.querySelectorAll('tr')];
+      const gramsByElement = {};
+      const unknown = [];
+
+      for (const r of rows){
+        const [elInput, grInput] = r.querySelectorAll('input');
+        const el = normalizeSymbol(elInput.value);
+        const g = parseFloat(grInput.value);
+        if (!el || !(g > 0)) continue;
+        if (!(el in ATOMIC_MASS)) unknown.push(el);
+        gramsByElement[el] = (gramsByElement[el] || 0) + g; // sumar si se repite
+      }
+
+      if (Object.keys(gramsByElement).length === 0){
+        formulaOut.textContent = '—';
+        detailsOut.textContent = 'Agrega al menos un elemento con gramos > 0';
+        return;
+      }
+      if (unknown.length){
+        detailsOut.textContent = `Advertencia: elementos no reconocidos: ${unknown.join(', ')}. Puedes añadir sus masas al diccionario.`;
+      } else {
+        detailsOut.textContent = '—';
+      }
+
+      try {
+        const eps = Math.max(0, parseFloat(epsInput.value) || 0.02);
+        const maxMult = Math.max(2, parseInt(maxMultInput.value) || 8);
+        const { formula, ints, ratios } = empiricalFormula(gramsByElement, ATOMIC_MASS, eps, maxMult);
+        formulaOut.textContent = formula || '—';
+        const parts = [];
+        parts.push('Ratios (normalizados):\n' + prettyRatios(ratios));
+        parts.push('Subíndices enteros: ' + Object.entries(ints).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}=${v}`).join(', '));
+        detailsOut.textContent = parts.join('\n\n');
+      } catch (e){
+        formulaOut.textContent = '—';
+        detailsOut.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    calcBtn.addEventListener('click', handleCalculate);
+  </script>
+</body>
+</html>
