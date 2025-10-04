@@ -243,6 +243,14 @@
                       style="width: 90px; margin-left: 8px"
                     />
                   </label>
+                  <label
+                    ><input type="radio" name="mode" value="grams" checked />
+                    Ingresar en gramos</label
+                  >
+                  <label
+                    ><input type="radio" name="mode" value="percent" /> Ingresar
+                    en porcentajes (%)</label
+                  >
                 </div>
               </div>
 
@@ -250,7 +258,7 @@
                 <thead>
                   <tr>
                     <th style="width: 160px">Elemento (símbolo)</th>
-                    <th>Gramos</th>
+                    <th id="grams">Gramos</th>
                     <th style="width: 60px"></th>
                   </tr>
                 </thead>
@@ -406,6 +414,17 @@
       const detailsOut = document.getElementById("details");
       const ex1 = document.getElementById("example1");
       const ex2 = document.getElementById("example2");
+      const grams = document.getElementById("grams");
+      const modeRadios = document.getElementsByName("mode");
+
+      modeRadios.forEach((radio) => {
+        radio.addEventListener("change", () => {
+          grams.textContent =
+            radio.value === "percent" && radio.checked
+              ? "Porcentaje (%)"
+              : "Gramos";
+        });
+      });
 
       function addRow(symbol = "", grams = "") {
         const tr = document.createElement("tr");
@@ -493,7 +512,8 @@
           const g = gramsByElement[el];
           if (!(g > 0)) continue; // ignorar ceros o negativos
           moles[el] = g / masses[el];
-          molarMass = molarMass + gramsByElement[el];
+          molarMass +=
+            masses[el] * (moles[el] / Math.min(...Object.values(moles)));
         }
         const molVals = Object.values(moles).filter((v) => v > 0);
         if (molVals.length === 0)
@@ -551,9 +571,11 @@
       }
 
       function handleCalculate() {
+        const mode = Array.from(modeRadios).find((r) => r.checked).value;
         const rows = [...tbody.querySelectorAll("tr")];
         const gramsByElement = {};
         const unknown = [];
+        let totalPercent = 0;
 
         for (const r of rows) {
           const [elInput, grInput] = r.querySelectorAll("input");
@@ -562,6 +584,15 @@
           if (!el || !(g > 0)) continue;
           if (!(el in ATOMIC_MASS)) unknown.push(el);
           gramsByElement[el] = (gramsByElement[el] || 0) + g; // sumar si se repite
+          if (mode === "percent") totalPercent += g;
+        }
+        let data = {};
+        if (mode === "percent") {
+          for (const el in gramsByElement) {
+            data[el] = gramsByElement[el];
+          }
+        } else {
+          data = gramsByElement;
         }
 
         if (Object.keys(gramsByElement).length === 0) {
@@ -581,7 +612,7 @@
           const eps = Math.max(0, parseFloat(epsInput.value) || 0.02);
           const maxMult = Math.max(2, parseInt(maxMultInput.value) || 8);
           const { formula, ints, ratios, molarMass } = empiricalFormula(
-            gramsByElement,
+            data,
             ATOMIC_MASS,
             eps,
             maxMult
@@ -592,7 +623,7 @@
           formulaOut.innerHTML = `\\(${latexFormula}\\)`; // Usar MathJax para renderizar
           MathJax.typeset(); // Forzar renderizado de MathJax
 
-          molarMassOut.textContent = "Masa Molar: " + molarMass;
+          molarMassOut.textContent = `Masa Molar: ${molarMass.toFixed(2)} g/mol`;
           const parts = [];
           parts.push("Ratios (normalizados):\n" + prettyRatios(ratios));
           parts.push(
