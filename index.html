@@ -512,8 +512,6 @@
           const g = gramsByElement[el];
           if (!(g > 0)) continue; // ignorar ceros o negativos
           moles[el] = g / masses[el];
-          molarMass +=
-            masses[el] * (moles[el] / Math.min(...Object.values(moles)));
         }
         const molVals = Object.values(moles).filter((v) => v > 0);
         if (molVals.length === 0)
@@ -550,6 +548,9 @@
         if (G > 1)
           for (const el in ints)
             if (ints[el] > 0) ints[el] = Math.floor(ints[el] / G);
+          for (const el in gramsByElement){
+            molarMass += masses[el] * ints[el]
+          }
 
         // 5) construir fórmula (Hill)
         let keys = Object.keys(ints).filter((k) => ints[k] > 0);
@@ -623,7 +624,7 @@
           formulaOut.innerHTML = `\\(${latexFormula}\\)`; // Usar MathJax para renderizar
           MathJax.typeset(); // Forzar renderizado de MathJax
 
-          molarMassOut.textContent = `Masa Molar: ${molarMass.toFixed(2)} g/mol`;
+          molarMassOut.textContent = `Masa Molar: ${molarMass.toFixed()} g/mol`;
           const parts = [];
           parts.push("Ratios (normalizados):\n" + prettyRatios(ratios));
           parts.push(
